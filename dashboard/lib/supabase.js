@@ -74,6 +74,87 @@ export async function fetchMasterProfile() {
   return data || null;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// TASK QUEUE (Office / Kanban)
+// ═══════════════════════════════════════════════════════════════════
+
+export async function fetchTaskQueue() {
+  const { data, error } = await supabase
+    .from('anima_task_queue')
+    .select('*')
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+    .limit(100);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updateTaskStatus(taskId, status) {
+  const updates = { status };
+  if (status === 'RUNNING') updates.started_at = new Date().toISOString();
+  if (status === 'DONE' || status === 'FAILED') updates.completed_at = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('anima_task_queue')
+    .update(updates)
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createTask({ agent_name, task_type, task_payload, priority, user_id }) {
+  const { data, error } = await supabase
+    .from('anima_task_queue')
+    .insert({
+      agent_name: agent_name || 'ROOT_ORCHESTRATOR',
+      task_type: task_type || 'LLM_CALL',
+      task_payload: task_payload || {},
+      priority: priority || 5,
+      status: 'QUEUED',
+      user_id: user_id || '00000000-0000-0000-0000-000000000001',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DECISIONS (Office / Approval Board)
+// ═══════════════════════════════════════════════════════════════════
+
+export async function fetchDecisions() {
+  const { data, error } = await supabase
+    .from('anima_agent_logs')
+    .select('*')
+    .eq('threat_detected', true)
+    .is('archived_at', null)
+    .order('pi_pulse_timestamp', { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function resolveDecision(logId, approved) {
+  const { data, error } = await supabase
+    .from('anima_agent_logs')
+    .update({
+      immune_scan_result: { resolved: true, approved, resolved_at: new Date().toISOString() },
+    })
+    .eq('id', logId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export function subscribeToTable(table, callback) {
   const channel = supabase
     .channel(`anima-${table}`)

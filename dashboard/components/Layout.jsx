@@ -6,6 +6,7 @@ import SystemStatus, { AnimaLogo } from './SystemStatus';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Mission Control', icon: '\u2318' },
+  { href: '/office', label: 'Pixel Office', icon: '\u25a3' },
   { href: '/agents', label: 'Agents', icon: '\u25c7' },
   { href: '/quantum', label: 'Quantum', icon: '\u03c8' },
   { href: '/evolution', label: 'Evolution', icon: '\u21bb' },
