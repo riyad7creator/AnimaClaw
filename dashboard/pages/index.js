@@ -51,8 +51,8 @@ RULES:
 - Never ask all questions at once.
 - Be warm, focused, and efficient. No fluff.
 - Build on previous answers — reference what they told you to make it conversational.
-- After all 12 questions, output ONLY valid JSON. No text before or after the JSON.
-- No markdown code fences around the JSON.
+- After all 12 questions, output the JSON wrapped in a single \`\`\`json code block for easy copying.
+- After the code block, add one line: "This is your complete ANIMA OS Master Profile. Paste it into the ORACLE field in your dashboard."
 - The JSON must match the exact schema below.
 - If the user gives a vague answer, ask a brief follow-up to clarify.
 - If the user says "skip", use null for that field.
@@ -117,25 +117,26 @@ QUESTION 12 — TEAM & TIMEZONE
 
 AFTER ALL 12 QUESTIONS ARE ANSWERED:
 
-Say: "Your profile is complete. Copy the JSON below and paste it back into ANIMA OS."
+Say: "Your profile is complete. Copy the entire code block below and paste it into ANIMA OS."
 
-Then output this exact JSON structure with the user's answers filled in. Output ONLY the JSON — no markdown fences, no extra text:
+Then output the completed JSON wrapped in a \`\`\`json code block. Fill all fields with the user's answers:
 
+\`\`\`json
 {
-  "master_name": "",
-  "brand": "",
-  "mission_dna": "",
-  "primary_platform": "",
-  "tools_stack": [],
-  "goal_90_days": "",
-  "main_obstacles": [],
-  "communication_style": "",
-  "business_model": "",
-  "content_topics": [],
-  "first_automation": "",
-  "system_prohibitions": [],
-  "team_structure": "",
-  "timezone": "",
+  "master_name": "REPLACE_WITH_ANSWER",
+  "brand": "REPLACE_WITH_ANSWER",
+  "mission_dna": "REPLACE_WITH_ANSWER",
+  "primary_platform": "REPLACE_WITH_ANSWER",
+  "tools_stack": ["tool1", "tool2"],
+  "goal_90_days": "REPLACE_WITH_ANSWER",
+  "main_obstacles": ["obstacle1", "obstacle2"],
+  "communication_style": "REPLACE_WITH_ANSWER",
+  "business_model": "REPLACE_WITH_ANSWER",
+  "content_topics": ["topic1", "topic2", "topic3"],
+  "first_automation": "REPLACE_WITH_ANSWER",
+  "system_prohibitions": ["prohibition1", "prohibition2"],
+  "team_structure": "REPLACE_WITH_ANSWER",
+  "timezone": "REPLACE_WITH_ANSWER",
   "phi_profile": {
     "primary_focus_weight": 0.618,
     "support_focus_weight": 0.382,
@@ -145,8 +146,11 @@ Then output this exact JSON structure with the user's answers filled in. Output 
   "generated_at": "ISO_TIMESTAMP",
   "generated_by": "ANIMA_ORACLE_v1"
 }
+\`\`\`
 
-Replace all empty strings with the user's answers. Replace arrays with arrays of the user's answers. Replace ISO_TIMESTAMP with the current date/time in ISO 8601 format. Do not change phi_profile values. Do not add any text before or after the JSON.`;
+After the code block, say: "This is your complete ANIMA OS Master Profile. Paste it directly into the ORACLE field in your dashboard."
+
+Replace all REPLACE_WITH_ANSWER placeholders with the user's actual answers. Replace ISO_TIMESTAMP with the current date/time in ISO 8601 format. Do not change phi_profile values. The code block must be complete and valid JSON.`;
 
 function OnboardingWizard({ onComplete }) {
   const [selectedMode, setSelectedMode] = useState(null);
@@ -218,16 +222,12 @@ function OnboardingWizard({ onComplete }) {
       };
 
       try {
-        const { error: dbError } = await supabase.from('anima_master_profile').upsert({
-          user_id: (await supabase.auth.getUser()).data?.user?.id,
-          profile_json: profile,
-          onboarding_mode: 'SPARK',
-          onboarding_complete: true,
-          oracle_version: 0,
-          version: '1.4.0',
-        }, { onConflict: 'user_id' });
-
-        if (dbError) throw dbError;
+        const res = await fetch('/api/master', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile_json: profile, onboarding_mode: 'SPARK' }),
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Save failed'); }
         onComplete('SPARK', profile);
       } catch (e) {
         setError(`Failed to save profile: ${e.message}`);
@@ -261,16 +261,12 @@ function OnboardingWizard({ onComplete }) {
     }
 
     try {
-      const { error: dbError } = await supabase.from('anima_master_profile').upsert({
-        user_id: (await supabase.auth.getUser()).data?.user?.id,
-        profile_json: parsed,
-        onboarding_mode: 'ORACLE',
-        onboarding_complete: true,
-        oracle_version: parsed.oracle_version || 1,
-        version: '1.4.0',
-      }, { onConflict: 'user_id' });
-
-      if (dbError) throw dbError;
+      const res = await fetch('/api/master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_json: parsed, onboarding_mode: 'ORACLE' }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Save failed'); }
       onComplete('ORACLE', parsed);
     } catch (e) {
       setError(`Failed to save profile: ${e.message}`);
@@ -301,17 +297,12 @@ function OnboardingWizard({ onComplete }) {
         },
       };
 
-      const { error: dbError } = await supabase.from('anima_master_profile').upsert({
-        user_id: (await supabase.auth.getUser()).data?.user?.id,
-        profile_json: blankProfile,
-        onboarding_mode: 'WILD',
-        onboarding_complete: false,
-        behavioral_log: [],
-        oracle_version: 0,
-        version: '1.4.0',
-      }, { onConflict: 'user_id' });
-
-      if (dbError) throw dbError;
+      const res = await fetch('/api/master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_json: blankProfile, onboarding_mode: 'WILD' }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Save failed'); }
       onComplete('WILD', blankProfile);
     } catch (e) {
       setError(`Failed to initialize WILD mode: ${e.message}`);

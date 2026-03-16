@@ -1,9 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Use service key on server side to bypass RLS — single-master system
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
+
+// Fixed master UUID for single-user ANIMA OS deployment
+const MASTER_UUID = '00000000-0000-0000-0000-000000000001';
 
 export default async function handler(req, res) {
   switch (req.method) {
@@ -11,6 +15,7 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from('anima_master_profile')
         .select('*')
+        .eq('user_id', MASTER_UUID)
         .limit(1)
         .single();
 
@@ -22,13 +27,12 @@ export default async function handler(req, res) {
     }
 
     case 'POST': {
-      const { profile_json, onboarding_mode, user_id } = req.body;
+      const { profile_json, onboarding_mode } = req.body;
 
       if (!profile_json) {
         return res.status(400).json({ error: 'profile_json is required' });
       }
 
-      // Add system timestamps
       const profileWithMeta = {
         ...profile_json,
         installed_at: profile_json.installed_at || new Date().toISOString(),
@@ -39,10 +43,12 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from('anima_master_profile')
         .upsert({
-          user_id: user_id,
+          user_id: MASTER_UUID,
           profile_json: profileWithMeta,
           onboarding_mode: onboarding_mode || 'SPARK',
-          version: '1.0.0',
+          onboarding_complete: true,
+          oracle_version: profile_json.oracle_version || 1,
+          version: '1.5.0',
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
         .select();
@@ -52,19 +58,16 @@ export default async function handler(req, res) {
     }
 
     case 'PUT': {
-      const { user_id, updates } = req.body;
-      if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+      const { updates } = req.body;
 
-      // Fetch current profile
       const { data: current, error: fetchError } = await supabase
         .from('anima_master_profile')
         .select('profile_json')
-        .eq('user_id', user_id)
+        .eq('user_id', MASTER_UUID)
         .single();
 
       if (fetchError) return res.status(500).json({ error: fetchError.message });
 
-      // Merge updates into existing profile
       const mergedProfile = {
         ...(current?.profile_json || {}),
         ...updates,
@@ -76,7 +79,7 @@ export default async function handler(req, res) {
           profile_json: mergedProfile,
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', user_id)
+        .eq('user_id', MASTER_UUID)
         .select();
 
       if (error) return res.status(500).json({ error: error.message });
