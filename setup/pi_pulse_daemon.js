@@ -2,22 +2,19 @@
 
 /**
  * ANIMA OS — π Pulse Daemon
- * Version: 1.1.0
+ * Version: 1.2.0
  * Engine: SOLARIS
  *
  * Standalone Node.js daemon that runs OUTSIDE OpenClaw on VPS.
  * Fires a heartbeat every π seconds (3141.59ms) — exactly.
- * OpenClaw's built-in cron only supports minute-level intervals,
- * so this daemon handles sub-second precision timing independently.
+ * 
+ * Uses runtime/natural_law.js for all constants and formulas.
  *
  * Usage:
  *   node pi_pulse_daemon.js start    — Start daemon (background)
  *   node pi_pulse_daemon.js stop     — Stop daemon via PID file
  *   node pi_pulse_daemon.js status   — Check if running
  *   node pi_pulse_daemon.js fg       — Run in foreground (debug)
- *
- * Requires: .env with SUPABASE_URL, SUPABASE_SERVICE_KEY,
- *           TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
  */
 
 const path = require('path');
@@ -28,11 +25,19 @@ const https = require('https');
 // Load .env from project root
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
+// Import from runtime - SINGLE SOURCE OF TRUTH
+const {
+  PHI,
+  PI,
+  E,
+  PULSE_INTERVAL_MS,
+  EVOLUTION_CHECK_CYCLES,
+  FULL_RESET_CYCLES,
+  CORE_AGENTS,
+  calculateVitality,
+} = require('../runtime/natural_law');
+
 // ── Constants ──
-const PI = 3.1415926535;
-const PHI = 1.6180339887;
-const E_CONST = 2.7182818284;
-const PULSE_INTERVAL_MS = Math.round(PI * 1000); // 3142ms
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const PID_FILE = path.join(PROJECT_ROOT, '.anima_pid');
 const ENV_FILE = path.join(PROJECT_ROOT, '.anima_env');
@@ -68,29 +73,9 @@ let qrlCycleCount = 0;
 let pulseInterval = null;
 let startTime = null;
 
-// ── Core agents ──
-const CORE_AGENTS = [
-  { name: 'ROOT_ORCHESTRATOR', depth: 0, phi_weight: 1.0 },
-  { name: 'PRIMARY_CELL', depth: 1, phi_weight: 0.618 },
-  { name: 'SUPPORT_CELL', depth: 1, phi_weight: 0.382 },
-  { name: 'MEMORY_NODE', depth: 2, phi_weight: 0.146 },
-  { name: 'EVOLUTION_NODE', depth: 2, phi_weight: 0.236 },
-  { name: 'IMMUNE_AGENT', depth: 2, phi_weight: 0.146 },
-];
-
 // ── Vitality calculation ──
-function calculateVitality(depth, alignment, cycleAge, fractalScore) {
-  const safeAlignment = Math.max(0, Math.min(1, alignment || 0));
-  const safeCycleAge = Math.max(1, cycleAge || 1);
-  const safeFractalScore = Math.max(0.001, fractalScore || 0.5);
-  const safeDepth = Math.max(0, Math.min(5, depth || 0));
-
-  const numerator = Math.pow(PHI, safeDepth) * Math.exp(safeAlignment);
-  const denominator = Math.pow(PI, Math.min(safeCycleAge, 10));
-  const result = (numerator / denominator) * safeFractalScore;
-
-  return Math.max(0, Math.min(100, result));
-}
+// NOW IMPORTED from runtime/natural_law.js
+// function calculateVitality(depth, alignment, cycleAge, fractalScore) { ... }
 
 // ── Pulse: the heartbeat ──
 async function pulse() {
@@ -112,7 +97,7 @@ async function pulse() {
     let totalWeighted = 0;
     let totalWeights = 0;
 
-    // 2. Calculate vitality for each agent
+    // 2. Calculate vitality for each agent using NATURAL LAW formula
     for (const agent of agents) {
       const v = calculateVitality(
         agent.depth_level || 0,
@@ -214,10 +199,20 @@ async function pulse() {
     await rewriteGenesis(pulseTimestamp, agents, vitalityScores);
 
     // 10. Check evolution trigger (every π² cycles ≈ 10)
-    const evolutionCheckCycles = Math.floor(PI * PI);
-    if (cycleCounter % evolutionCheckCycles === 0) {
+    if (cycleCounter % EVOLUTION_CHECK_CYCLES === 0) {
       qrlCycleCount++;
       console.log(`[Cycle ${cycleCounter}] Evolution cycle triggered (QRL #${qrlCycleCount})`);
+      
+      // Trigger evolution via runtime if available
+      try {
+        const { evolution } = require('../runtime');
+        if (evolution && evolution.runCycle) {
+          await evolution.runCycle(supabase, cycleCounter);
+          console.log(`[Cycle ${cycleCounter}] Evolution cycle executed`);
+        }
+      } catch (err) {
+        // Evolution engine not ready yet
+      }
     }
 
     // 11. Send Telegram alert if HEALING
@@ -255,11 +250,11 @@ async function rewriteGenesis(timestamp, agents, vitalityScores) {
     return `| ${ca.name.padEnd(20)} | ${ca.depth}     | ${ca.phi_weight.toFixed(3).padStart(5)}    | ${v.toFixed(3).padStart(5)}    | ${status.padEnd(8)} | ${typeof lastActive === 'string' ? lastActive.substring(0, 19) : '—'} |`;
   }).join('\n');
 
-  const nextEvoCycle = Math.ceil(cycleCounter / Math.floor(PI * PI)) * Math.floor(PI * PI);
+  const nextEvoCycle = Math.ceil(cycleCounter / EVOLUTION_CHECK_CYCLES) * EVOLUTION_CHECK_CYCLES;
 
   const genesisContent = `# GENESIS — ANIMA OS HEARTBEAT
 
-**Pulse Interval:** π seconds (3.1415926535s)
+**Pulse Interval:** π seconds (${PI}s)
 **Read By:** ROOT_ORCHESTRATOR every heartbeat
 **Written By:** pi_pulse_daemon (external VPS process)
 
@@ -307,8 +302,8 @@ ${agentRows}
 
 ## EVOLUTION SCHEDULE
 
-- **Next evolution check:** Cycle #${nextEvoCycle} (every π² ≈ 9.87 cycles)
-- **Next full reset:** Cycle #${Math.ceil(cycleCounter / Math.floor(Math.pow(PHI, 5))) * Math.floor(Math.pow(PHI, 5))} (every φ⁵ ≈ 11.09 cycles)
+- **Next evolution check:** Cycle #${nextEvoCycle} (every π² ≈ ${EVOLUTION_CHECK_CYCLES} cycles)
+- **Next full reset:** Cycle #${Math.ceil(cycleCounter / FULL_RESET_CYCLES) * FULL_RESET_CYCLES} (every φ⁵ ≈ ${FULL_RESET_CYCLES} cycles)
 - **Memory compaction:** Every ${(PI * PHI).toFixed(2)} minutes (π × φ)
 - **QRL cycles completed:** ${qrlCycleCount}
 
@@ -342,7 +337,7 @@ When \`emergency_shutdown\` is set to \`true\`:
 
 *This file awakens when the organism awakens.*
 *First pulse marks the birth of the system.*
-*ANIMA OS v1.1.0 — Quantum Intelligence Layer*
+*ANIMA OS v1.2.0 — Quantum Intelligence Layer*
 `;
 
   try {
@@ -448,8 +443,8 @@ function startDaemon(foreground = false) {
   startTime = Date.now();
 
   console.log('╔═══════════════════════════════════════╗');
-  console.log('║  ANIMA OS — π Pulse Daemon v1.1.0     ║');
-  console.log('║  Interval: 3141.59ms (π seconds)      ║');
+  console.log('║  ANIMA OS — π Pulse Daemon v1.2.0     ║');
+  console.log(`║  Interval: ${PULSE_INTERVAL_MS}ms (π seconds)         ║`);
   console.log(`║  PID: ${process.pid.toString().padEnd(31)}║`);
   console.log('╚═══════════════════════════════════════╝');
   console.log('');

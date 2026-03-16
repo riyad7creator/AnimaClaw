@@ -4,20 +4,23 @@
  *
  * Every task passes through phi_core before execution.
  * Scoring: phi_score = task_complexity × phi_weight × mission_alignment
+ * 
+ * NOTE: All constants imported from natural_law.js - single source of truth.
  */
 
-const PHI = 1.6180339887;
-const PI = 3.1415926535;
-const E = 2.7182818284;
-
-const AGENT_REGISTRY = {
-  ROOT_ORCHESTRATOR: { depth: 0, phi_weight: 1.0, parent: null },
-  PRIMARY_CELL: { depth: 1, phi_weight: 0.618, parent: 'ROOT_ORCHESTRATOR' },
-  SUPPORT_CELL: { depth: 1, phi_weight: 0.382, parent: 'ROOT_ORCHESTRATOR' },
-  MEMORY_NODE: { depth: 2, phi_weight: 0.146, parent: 'SUPPORT_CELL' },
-  EVOLUTION_NODE: { depth: 2, phi_weight: 0.236, parent: 'SUPPORT_CELL' },
-  IMMUNE_AGENT: { depth: 2, phi_weight: 0.146, parent: 'SUPPORT_CELL' },
-};
+const {
+  PHI,
+  PI,
+  E,
+  PHI_PRIMARY,
+  PHI_SECONDARY,
+  AGENT_REGISTRY,
+  VITALITY_MAINTAIN,
+  VITALITY_CRITICAL,
+  calculateVitality,
+  harmonicBridge,
+  allocateResources,
+} = require('./natural_law');
 
 /**
  * Score a task-agent pairing.
@@ -31,7 +34,7 @@ function scoreAssignment(task, agent) {
   const rawScore = (complexity / 10) * urgency * alignment * agent.phi_weight;
   const depthPenalty = 1.0 / (1 + agent.depth * 0.1);
   const capacityFactor = 1.0 - ((agent.current_load || 0) / (agent.max_capacity || 10));
-  const vitalityBonus = agentVitality > 0.618 ? 1.0 : agentVitality;
+  const vitalityBonus = agentVitality > VITALITY_MAINTAIN ? 1.0 : agentVitality;
 
   return rawScore * depthPenalty * capacityFactor * vitalityBonus;
 }
@@ -40,10 +43,10 @@ function scoreAssignment(task, agent) {
  * Apply interference (Law 8) to a raw score.
  */
 function applyInterference(rawScore) {
-  if (rawScore > 0.618) {
+  if (rawScore > VITALITY_MAINTAIN) {
     return { score: Math.min(rawScore * PHI, 1.618), type: 'CONSTRUCTIVE' };
   }
-  return { score: rawScore * 0.382, type: 'DESTRUCTIVE' };
+  return { score: rawScore * VITALITY_CRITICAL, type: 'DESTRUCTIVE' };
 }
 
 /**
@@ -56,7 +59,7 @@ function routeTask(task, agents) {
 
   for (const agent of agents) {
     if (agent.status === 'PRUNED' || agent.status === 'QUARANTINED') continue;
-    if ((agent.vitality_score || 0) < 0.382) continue;
+    if ((agent.vitality_score || 0) < VITALITY_CRITICAL) continue;
 
     const raw = scoreAssignment(task, agent);
     const { score, type } = applyInterference(raw);
@@ -72,7 +75,7 @@ function routeTask(task, agents) {
     agent: bestAgent?.branch_id || bestAgent?.name || null,
     score: bestScore,
     interference: bestInterference,
-    raw_score: bestScore > 0 ? (bestInterference === 'CONSTRUCTIVE' ? bestScore / PHI : bestScore / 0.382) : 0,
+    raw_score: bestScore > 0 ? (bestInterference === 'CONSTRUCTIVE' ? bestScore / PHI : bestScore / VITALITY_CRITICAL) : 0,
   };
 }
 
@@ -86,7 +89,7 @@ function qaoaRoute(tasks, agents) {
   for (const task of tasks) {
     for (const agent of agents) {
       if (agent.status !== 'ALIVE' && agent.status !== 'HEALING') continue;
-      if ((agent.vitality_score || 0) < 0.382) continue;
+      if ((agent.vitality_score || 0) < VITALITY_CRITICAL) continue;
 
       const raw = scoreAssignment(task, agent);
       const { score, type } = applyInterference(raw);
@@ -116,9 +119,9 @@ function qaoaRoute(tasks, agents) {
 
     const count = agentTaskCount[entry.agent_name] || 0;
     const agentDef = AGENT_REGISTRY[entry.agent_name];
-    const maxTasks = (agentDef?.phi_weight || 0) >= 0.618
-      ? Math.ceil(tasks.length * 0.618)
-      : Math.ceil(tasks.length * 0.382);
+    const maxTasks = (agentDef?.phi_weight || 0) >= VITALITY_MAINTAIN
+      ? Math.ceil(tasks.length * PHI_PRIMARY)
+      : Math.ceil(tasks.length * PHI_SECONDARY);
 
     if (count >= maxTasks) continue;
 
@@ -136,33 +139,24 @@ function qaoaRoute(tasks, agents) {
   };
 }
 
-/**
- * Calculate phi-weighted resource allocation for two children.
- */
-function allocateResources(total, primaryName, secondaryName) {
-  return {
-    [primaryName]: total * 0.618,
-    [secondaryName]: total * 0.382,
-  };
-}
-
-/**
- * Calculate harmonic bridge for timing adjustment.
- */
-function harmonicBridge(phiWeight) {
-  const bridge = PI / (PHI * PHI);
-  return PI * phiWeight * bridge;
-}
-
+// Re-export natural law constants for backward compatibility
 module.exports = {
+  // From natural_law
   PHI,
   PI,
   E,
+  PHI_PRIMARY,
+  PHI_SECONDARY,
   AGENT_REGISTRY,
+  VITALITY_MAINTAIN,
+  VITALITY_CRITICAL,
+  calculateVitality,
+  harmonicBridge,
+  allocateResources,
+  
+  // Phi core specific
   scoreAssignment,
   applyInterference,
   routeTask,
   qaoaRoute,
-  allocateResources,
-  harmonicBridge,
 };
