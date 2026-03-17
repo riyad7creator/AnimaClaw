@@ -29,10 +29,16 @@ export default function ChatPanel() {
     setLoading(true);
 
     try {
+      // Build history for LLM context (last 6 exchanges)
+      const history = messages.slice(-6).map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, history }),
       });
       const data = await res.json();
 
