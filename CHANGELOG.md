@@ -1,6 +1,38 @@
-# CHANGELOG — ANIMA OS
+# CHANGELOG — AnimaClaw (ANIMA OS)
 
-All notable changes to ANIMA OS are documented here.
+All notable changes to AnimaClaw are documented here.
+
+---
+
+## [1.7.0] - 2026-03-17
+
+### Added
+* Mission Control dashboard (builderz-labs/mission-control fork) — Next.js 16, React 19, TypeScript 5
+* AnimaAgentList: 4 pre-built specialized agents (Content, Research, Customer Service, Workflow)
+* ClientWorkspace: Multi-tenant workspace isolation with Supabase RLS
+* UsageTierPanel: Free/Pro/Enterprise billing tiers with credit tracking
+* AnimaMemoryGraph: Structured per-agent/user/task memory viewer with search and edit
+* OpenClaw gateway adapter with multi-provider routing (Claude, Kimi, DeepSeek, Gemini)
+* Supabase memory sync for persistent agent memory
+* Vercel deployment support (vercel.json, DEPLOY_VERCEL.md)
+* PM2 cluster-mode production config (ecosystem.config.js)
+* Auto-installer script: install-anima-v1.7.sh
+* QUICKSTART.md — 5-minute getting started guide
+* CONTRIBUTING.md — Open-source contributor guidelines
+* SECURITY.md — Vulnerability reporting policy
+* docs/AGENTS.md — Full agent documentation
+* docs/DEPLOY.md — Complete deployment guide
+
+### Changed
+* Dashboard completely replaced with Mission Control base (1039 packages, 104 pages)
+* Rebranded all "anima.clawd" references to "AnimaClaw"
+* README.md rewritten as world-class project page with deploy button
+* DOCUMENTATION.md updated with v1.7 Mission Control section
+* WHITEPAPER.md updated with v1.7 architecture
+
+### Fixed
+* Vercel serverless function 250MB size limit (excluded pnpm-store from trace)
+* PM2 cluster mode configuration for production stability
 
 ---
 

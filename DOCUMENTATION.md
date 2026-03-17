@@ -1229,5 +1229,79 @@ npx vercel --prod
 
 ---
 
-*ANIMA OS is a living system. This documentation evolves with every major version.*
+---
+
+## 19. v1.7 — Mission Control Dashboard
+
+### Overview
+
+In v1.7, the entire dashboard was replaced with a fork of [Mission Control](https://github.com/builderz-labs/mission-control) — an open-source agent orchestration dashboard built on Next.js 16, React 19, and TypeScript 5. This provides a production-grade SaaS frontend with multi-tenant capabilities.
+
+### Architecture
+
+```
+User Browser
+    │
+    ▼
+AnimaClaw Mission Control (dashboard/)
+    │  Next.js 16 + React 19 + Zustand + SQLite
+    │
+    ├──► OpenClaw Gateway Adapter (src/lib/gateways/anima-openclaw.ts)
+    │        │
+    │        ▼
+    │    Provider Router
+    │    ┌──────────┬──────────┬──────────┬──────────┐
+    │    │  Claude   │   Kimi   │ DeepSeek │  Gemini  │
+    │    │(reasoning)│ (speed)  │ (speed)  │(reasoning)│
+    │    └──────────┴──────────┴──────────┴──────────┘
+    │
+    ├──► Structured Memory (Supabase)
+    │    Per-agent/user/task memory with RLS isolation
+    │
+    └──► AnimaClaw Core (../core/, ../agents/)
+         SOLARIS engine, phi-routing, quantum decisions
+```
+
+### New Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| AnimaAgentList | `src/components/anima/AnimaAgentList.tsx` | Registry of 4 pre-built agents with system prompts, tools, and tier assignment |
+| ClientWorkspace | `src/components/anima/ClientWorkspace.tsx` | Multi-tenant workspace management with credit tracking and RLS |
+| UsageTierPanel | `src/components/anima/UsageTierPanel.tsx` | Free/Pro/Enterprise tier display with provider breakdown |
+| AnimaMemoryGraph | `src/components/anima/AnimaMemoryGraph.tsx` | Searchable, editable structured memory viewer with workflow state |
+
+### Multi-Provider Routing
+
+The gateway adapter routes requests based on task type:
+- **Speed tasks** → Kimi, DeepSeek (low latency)
+- **Reasoning tasks** → Claude, Gemini (high quality)
+
+Provider health is monitored and failover is automatic.
+
+### Supabase Memory Sync
+
+Agent memory is synced to Supabase with:
+- Row-level security per workspace
+- Structured key-value format (not raw chat history)
+- Per-agent, per-user, and per-task scoping
+- Token-aware context window optimization
+
+### Vercel Deployment
+
+One-click deploy: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/riyad7creator/AnimaClaw&root=dashboard)
+
+See `dashboard/DEPLOY_VERCEL.md` for environment variable reference.
+
+### PM2 Production Config
+
+```bash
+cd dashboard
+bash install-anima-v1.7.sh    # Install + build
+pm2 start ecosystem.config.js  # Cluster mode
+```
+
+---
+
+*AnimaClaw is a living system. This documentation evolves with every major version.*
 *φ = 1.618 · π = 3.14 · e = 2.718 · By Riyad Ketami*

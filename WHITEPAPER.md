@@ -617,7 +617,62 @@ Sum of all weights: 1.000 + 0.618 + 0.382 + 0.146 + 0.236 + 0.146 = 2.528
 
 ---
 
-*ANIMA OS — A living system. Mathematically governed. Mission-driven. Always running.*
+---
+
+## Appendix D — v1.7 Architecture Update (March 2026)
+
+### Dashboard Layer: Mission Control
+
+In v1.7, AnimaClaw adopted Mission Control — an open-source, MIT-licensed agent orchestration dashboard — as its frontend layer. This provides a production-grade Next.js 16 application with:
+
+- **104 routes** including 80+ API endpoints
+- **SQLite persistence** via better-sqlite3 (serverless-compatible)
+- **Real-time updates** via WebSocket and server-sent events
+- **Multi-tenant architecture** with workspace isolation
+
+### Agent Specialization
+
+Four production-ready agents ship with v1.7:
+
+| Agent | Domain | Providers | Languages |
+|-------|--------|-----------|-----------|
+| Content Agent | TikTok/Reels/SEO content | DeepSeek, Kimi | EN, FR, AR |
+| Research Agent | Deep research with citations | Claude, Gemini | EN, FR |
+| Customer Service | Multi-language CRM support | Claude, Kimi | EN, FR, AR |
+| Workflow Agent | Multi-step orchestration | Claude | EN |
+
+### Multi-Tenancy
+
+Client workspaces provide full isolation:
+- **Supabase Row-Level Security** — each workspace sees only its own data
+- **Independent credit pools** — usage tracked per workspace
+- **Member management** — role-based access within workspaces
+
+### Provider Independence
+
+AnimaClaw v1.7 eliminates single-vendor lock-in through a provider routing layer:
+
+```
+Task → Type Classification (speed vs reasoning)
+    → Provider Pool Selection
+    → Health Check + Availability
+    → Automatic Failover
+    → Response Normalization
+```
+
+Supported: Claude (Anthropic), Kimi (Moonshot), DeepSeek, Gemini (Google). Adding a new provider requires one adapter function.
+
+### SaaS Tiers
+
+| Tier | Credits/mo | Agents | Providers | Price |
+|------|-----------|--------|-----------|-------|
+| Free | 100 | 1 | DeepSeek | $0 |
+| Pro | 5,000 | Unlimited | All 4 | $49/mo |
+| Enterprise | Unlimited | Unlimited | All + Custom | Custom |
+
+---
+
+*AnimaClaw — A living system. Mathematically governed. Mission-driven. Always running.*
 
 *φ = 1.618 · π = 3.14 · e = 2.718*
 
