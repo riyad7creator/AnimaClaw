@@ -39,7 +39,7 @@ Emergency rollback point: `git reset --hard v1.7-stable`
 ## SECTION 1 — DIRECTORY TREE
 
 ```
-ANIMA.clawd/                         ← Monorepo root
+AnimaClawd/                         ← Monorepo root
 │
 ├── CODEBASE_MAP.md                  ← THIS FILE — agent navigation map
 ├── CONSTITUTION.md                  ← ⛔ PROTECTED — governance charter
@@ -820,13 +820,13 @@ the task must be escalated to human review.
 ```
 PROTECTED FILE                          REASON
 ─────────────────────────────────────   ─────────────────────────────────────────
-/ANIMA.clawd/CONSTITUTION.md            Governance charter — immutable law
-/ANIMA.clawd/QUANTUM_CONSTITUTION.md    Quantum law layer — immutable law
-/ANIMA.clawd/natural_law.json           Mathematical constants (φ, π, e)
-/ANIMA.clawd/converter/PROTECTED_FILES.json  Immune scanner whitelist
-/ANIMA.clawd/dashboard/.env             Secrets — SUPABASE_URL, keys, tokens
-/ANIMA.clawd/dashboard/.env.local       Secrets (local override)
-/ANIMA.clawd/dashboard/.env.production  Secrets (production)
+/AnimaClawd/CONSTITUTION.md            Governance charter — immutable law
+/AnimaClawd/QUANTUM_CONSTITUTION.md    Quantum law layer — immutable law
+/AnimaClawd/natural_law.json           Mathematical constants (φ, π, e)
+/AnimaClawd/converter/PROTECTED_FILES.json  Immune scanner whitelist
+/AnimaClawd/dashboard/.env             Secrets — SUPABASE_URL, keys, tokens
+/AnimaClawd/dashboard/.env.local       Secrets (local override)
+/AnimaClawd/dashboard/.env.production  Secrets (production)
 ```
 
 Additionally, treat these as high-risk (require human approval before modifying):

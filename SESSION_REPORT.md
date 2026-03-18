@@ -104,14 +104,14 @@ pnpm dev
 ### 1.4 Local Mac Development
 | Key | Value |
 |---|---|
-| **Project root** | `/Users/mac/Documents/01 - Projects/AnimaOs/ANIMA.clawd/` |
-| **Dashboard source** | `/Users/mac/Documents/01 - Projects/AnimaOs/ANIMA.clawd/dashboard/` |
+| **Project root** | `/Users/mac/Documents/01 - Projects/AnimaOs/AnimaClawd/` |
+| **Dashboard source** | `/Users/mac/Documents/01 - Projects/AnimaOs/AnimaClawd/dashboard/` |
 | **Node** | >= 22 (LTS) required |
 | **Package manager** | `pnpm` only (no npm/yarn) |
 
 ```bash
 # Dev server
-cd /Users/mac/Documents/01\ -\ Projects/AnimaOs/ANIMA.clawd/dashboard
+cd /Users/mac/Documents/01\ -\ Projects/AnimaOs/AnimaClawd/dashboard
 pnpm dev       # → http://localhost:3000
 
 # Type check (must pass 0 errors before any commit)
@@ -412,7 +412,7 @@ fmtScore(number, decimals)    // → '0.8234'
 - Sub-line: attachment count + char count when relevant
 - Inline `@keyframes chatWaveBar` (no globals dependency)
 
-#### `/ANIMA.clawd/CODEBASE_MAP.md` (root of project)
+#### `/AnimaClawd/CODEBASE_MAP.md` (root of project)
 **Purpose:** Machine-readable navigation map for AnimaClaw self-modification. Sections:
 1. Full directory tree with file purposes
 2. All routes and what they render
@@ -460,11 +460,11 @@ git push origin main --force
 These files are governed by ANIMA OS constitutional law. AnimaClaw's immune scanner will flag modifications:
 
 ```
-/ANIMA.clawd/CONSTITUTION.md
-/ANIMA.clawd/QUANTUM_CONSTITUTION.md
-/ANIMA.clawd/natural_law.json
-/ANIMA.clawd/converter/PROTECTED_FILES.json
-/ANIMA.clawd/dashboard/.env
+/AnimaClawd/CONSTITUTION.md
+/AnimaClawd/QUANTUM_CONSTITUTION.md
+/AnimaClawd/natural_law.json
+/AnimaClawd/converter/PROTECTED_FILES.json
+/AnimaClawd/dashboard/.env
 ```
 
 ---
@@ -474,7 +474,7 @@ These files are governed by ANIMA OS constitutional law. AnimaClaw's immune scan
 Before any Claude Code instance modifies this codebase:
 
 ```
-STEP 1  Read /ANIMA.clawd/CODEBASE_MAP.md (or ~/.openclaw/workspace/CODEBASE_MAP.md)
+STEP 1  Read /AnimaClawd/CODEBASE_MAP.md (or ~/.openclaw/workspace/CODEBASE_MAP.md)
 STEP 2  Check protected files list — if target is protected, STOP
 STEP 3  Read the target file completely before writing any change
 STEP 4  Make minimum-viable change only
@@ -487,18 +487,18 @@ STEP 8  Emergency rollback: git reset --hard v1.7-stable
 **OpenClaw sandbox issue:** The OpenClaw agent is sandboxed to `~/.openclaw/workspace/`. It cannot read files outside that path. Fix:
 ```bash
 # Run once to sync the map into the workspace:
-cp "/Users/mac/Documents/01 - Projects/AnimaOs/ANIMA.clawd/CODEBASE_MAP.md" \
+cp "/Users/mac/Documents/01 - Projects/AnimaOs/AnimaClawd/CODEBASE_MAP.md" \
    ~/.openclaw/workspace/CODEBASE_MAP.md
 
 # Add this alias to your shell for ongoing sync:
-alias anima-sync-map='cp "/Users/mac/Documents/01 - Projects/AnimaOs/ANIMA.clawd/CODEBASE_MAP.md" ~/.openclaw/workspace/CODEBASE_MAP.md && echo "Map synced ✓"'
+alias anima-sync-map='cp "/Users/mac/Documents/01 - Projects/AnimaOs/AnimaClawd/CODEBASE_MAP.md" ~/.openclaw/workspace/CODEBASE_MAP.md && echo "Map synced ✓"'
 ```
 
 **Prompt template for AnimaClaw tasks:**
 ```
 You are AnimaClaw v1.7. Read ~/.openclaw/workspace/CODEBASE_MAP.md first.
-Codebase root: /Users/mac/Documents/01 - Projects/AnimaOs/ANIMA.clawd/
-Dashboard: /Users/mac/Documents/01 - Projects/AnimaOs/ANIMA.clawd/dashboard/src/
+Codebase root: /Users/mac/Documents/01 - Projects/AnimaOs/AnimaClawd/
+Dashboard: /Users/mac/Documents/01 - Projects/AnimaOs/AnimaClawd/dashboard/src/
 Follow the mandatory protocol in Section 0 of the map before touching any file.
 
 Task: [DESCRIBE WHAT YOU WANT HERE]
