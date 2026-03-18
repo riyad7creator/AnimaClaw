@@ -99,12 +99,22 @@ export const WIDGET_CATALOG: DashboardWidget[] = [
     defaultSize: 'full',
     component: 'QuickActionsWidget',
   },
+  {
+    id: 'quick-chat',
+    label: 'Quick Chat',
+    description: 'Send messages to any agent directly from the overview — with file & voice support',
+    category: 'sessions',
+    modes: ['local', 'full'],
+    defaultSize: 'md',
+    component: 'QuickChatWidget',
+  },
 ]
 
 export const LOCAL_DEFAULT_LAYOUT = [
   'metric-cards',
   'runtime-health',
   'session-workbench',
+  'quick-chat',
   'event-stream',
   'task-flow',
   'github-signal',
@@ -115,6 +125,7 @@ export const GATEWAY_DEFAULT_LAYOUT = [
   'metric-cards',
   'gateway-health',
   'session-workbench',
+  'quick-chat',
   'event-stream',
   'task-flow',
   'security-audit',

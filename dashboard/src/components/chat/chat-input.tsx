@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useMissionControl, type ChatAttachment } from '@/store'
-import { Button } from '@/components/ui/button'
 
 interface ChatInputProps {
   onSend: (content: string, attachments?: ChatAttachment[]) => void
@@ -11,9 +10,10 @@ interface ChatInputProps {
   disabled?: boolean
   agents?: Array<{ name: string; role: string }>
   isGenerating?: boolean
+  compact?: boolean
 }
 
-// ─── Voice recording hook ────────────────────────────────────────────────────
+// ─── Voice recorder hook ─────────────────────────────────────────────────────
 
 type RecordingState = 'idle' | 'recording' | 'processing'
 
@@ -76,73 +76,61 @@ function useVoiceRecorder(onRecorded: (attachment: ChatAttachment) => void) {
     }
   }, [])
 
-  const fmtSeconds = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-
-  return { state, seconds: fmtSeconds(seconds), start, stop }
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  return { state, seconds: fmt(seconds), start, stop }
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Attachment chip ──────────────────────────────────────────────────────────
 
-function AttachmentChip({
-  att,
-  index,
-  onRemove,
-}: {
-  att: ChatAttachment
-  index: number
-  onRemove: (i: number) => void
+function AttachmentChip({ att, index, onRemove }: {
+  att: ChatAttachment; index: number; onRemove: (i: number) => void
 }) {
   const isImage = att.type.startsWith('image/')
   const isAudio = att.type.startsWith('audio/')
-
-  const fmtSize = (b: number) => {
-    if (b < 1024) return `${b} B`
-    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-    return `${(b / (1024 * 1024)).toFixed(1)} MB`
-  }
+  const fmt = (b: number) =>
+    b < 1024 ? `${b}B` : b < 1048576 ? `${(b / 1024).toFixed(1)}KB` : `${(b / 1048576).toFixed(1)}MB`
 
   return (
     <div className="relative group flex-shrink-0">
       {isImage ? (
-        <div className="relative rounded-lg overflow-hidden border border-border/60 bg-surface-1">
+        <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-border/60 bg-surface-1 shadow-sm">
           <Image
             src={att.dataUrl}
             alt={att.name}
-            width={64}
-            height={64}
+            width={56}
+            height={56}
             unoptimized
-            className="w-16 h-16 object-cover"
+            className="w-full h-full object-cover"
           />
-          <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white/80 px-1 py-0.5 truncate">
-            {fmtSize(att.size)}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute bottom-0.5 inset-x-0 text-[8px] text-white/70 text-center font-mono-tight px-0.5 truncate">
+            {fmt(att.size)}
           </div>
         </div>
       ) : isAudio ? (
-        <div className="flex items-center gap-2 rounded-lg border border-[#22D3EE]/30 bg-[#22D3EE]/5 px-3 py-2 w-44">
-          <div className="flex-shrink-0 text-[#22D3EE]">
+        <div className="flex items-center gap-2 rounded-xl border border-[#22D3EE]/25 bg-[#22D3EE]/5 px-3 py-2 w-44 shadow-sm">
+          <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#22D3EE]/15 flex items-center justify-center text-[#22D3EE]">
             <WaveformIcon />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-medium text-[#22D3EE] truncate">Voice message</div>
-            <div className="text-[9px] text-muted-foreground font-mono-tight">{fmtSize(att.size)}</div>
+            <div className="text-[11px] font-semibold text-[#22D3EE] truncate">Voice message</div>
+            <div className="text-[9px] text-muted-foreground font-mono-tight">{fmt(att.size)}</div>
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface-1 px-3 py-2 w-40">
-          <div className="text-muted-foreground flex-shrink-0">
+        <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-surface-1 px-3 py-2 w-40 shadow-sm">
+          <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-surface-2 flex items-center justify-center text-muted-foreground">
             <FileIcon />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-medium text-foreground truncate">{att.name}</div>
-            <div className="text-[9px] text-muted-foreground font-mono-tight">{fmtSize(att.size)}</div>
+            <div className="text-[11px] font-medium text-foreground truncate">{att.name}</div>
+            <div className="text-[9px] text-muted-foreground font-mono-tight">{fmt(att.size)}</div>
           </div>
         </div>
       )}
-
-      {/* Remove button */}
       <button
         onClick={() => onRemove(index)}
-        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex shadow-md z-10 hover:bg-red-400"
+        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-background border border-border text-muted-foreground text-[9px] items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md z-10 hidden group-hover:flex hover:bg-red-500 hover:text-white hover:border-red-500"
         aria-label="Remove attachment"
       >
         ✕
@@ -151,9 +139,16 @@ function AttachmentChip({
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main ChatInput ───────────────────────────────────────────────────────────
 
-export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  onAbort,
+  disabled,
+  agents = [],
+  isGenerating,
+  compact = false,
+}: ChatInputProps) {
   const { chatInput, setChatInput, isSendingMessage } = useMissionControl()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -169,23 +164,17 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
   )
 
   // ── Auto-resize ───────────────────────────────────────────────────────────
-
   const autoResize = useCallback(() => {
     const el = textareaRef.current
-    if (el) {
-      el.style.height = 'auto'
-      el.style.height = Math.min(el.scrollHeight, 160) + 'px'
-    }
-  }, [])
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, compact ? 120 : 200) + 'px'
+  }, [compact])
 
   useEffect(() => { autoResize() }, [chatInput, autoResize])
-
-  useEffect(() => {
-    if (!disabled) textareaRef.current?.focus()
-  }, [disabled])
+  useEffect(() => { if (!disabled) textareaRef.current?.focus() }, [disabled])
 
   // ── File handling ─────────────────────────────────────────────────────────
-
   const addFiles = useCallback((files: FileList | File[]) => {
     Array.from(files).forEach((file) => {
       if (file.size > 10 * 1024 * 1024) return
@@ -208,13 +197,15 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
     setAttachments((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  // ── Drag and drop ─────────────────────────────────────────────────────────
-
-  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
-  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
+  // ── Drag & drop ───────────────────────────────────────────────────────────
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); setIsDragOver(true)
+  }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); setIsDragOver(false)
+  }, [])
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
+    e.preventDefault(); setIsDragOver(false)
     if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files)
   }, [addFiles])
 
@@ -231,12 +222,15 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
     if (images.length > 0) { e.preventDefault(); addFiles(images) }
   }, [addFiles])
 
-  // ── Voice recorder ────────────────────────────────────────────────────────
-
-  const { state: recState, seconds: recTime, start: startRec, stop: stopRec } = useVoiceRecorder(addAudio)
+  // ── Voice ─────────────────────────────────────────────────────────────────
+  const {
+    state: recState,
+    seconds: recTime,
+    start: startRec,
+    stop: stopRec,
+  } = useVoiceRecorder(addAudio)
 
   // ── Mentions ──────────────────────────────────────────────────────────────
-
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
     setChatInput(value)
@@ -257,14 +251,13 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
     setChatInput(before.slice(0, atIdx) + `@${name} ` + after)
     setShowMentions(false)
     setTimeout(() => {
-      const newPos = atIdx + name.length + 2
-      el.setSelectionRange(newPos, newPos)
+      const pos = atIdx + name.length + 2
+      el.setSelectionRange(pos, pos)
       el.focus()
     }, 0)
   }
 
   // ── Keyboard ──────────────────────────────────────────────────────────────
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showMentions) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex((i) => Math.min(i + 1, filteredAgents.length - 1)); return }
@@ -276,7 +269,6 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
   }
 
   // ── Send ──────────────────────────────────────────────────────────────────
-
   const handleSend = () => {
     const trimmed = chatInput.trim()
     if ((!trimmed && attachments.length === 0) || disabled || isSendingMessage) return
@@ -289,203 +281,232 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
   const hasContent = chatInput.trim().length > 0 || attachments.length > 0
   const canSend = hasContent && !disabled && !isSendingMessage
 
+  // Waveform bar heights for recording animation
+  const waveHeights = [3, 6, 4, 8, 3, 7, 5, 9, 4, 6, 3, 7, 5]
+
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div
-      className="relative flex-shrink-0 safe-area-bottom"
+      className="relative flex-shrink-0"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Drag-over overlay */}
+      {/* ── Drag overlay ─────────────────────────────────────────────────── */}
       {isDragOver && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-xl border-2 border-dashed border-[#22D3EE]/50 bg-[#22D3EE]/5 backdrop-blur-sm pointer-events-none">
-          <div className="flex flex-col items-center gap-1 text-[#22D3EE]">
-            <UploadIcon />
-            <span className="text-xs font-medium">Drop files here</span>
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#22D3EE]/60 bg-[#22D3EE]/5 backdrop-blur-sm pointer-events-none">
+          <div className="w-10 h-10 rounded-full bg-[#22D3EE]/15 flex items-center justify-center text-[#22D3EE]">
+            <UploadCloudIcon />
           </div>
+          <span className="text-xs font-medium text-[#22D3EE]">Drop to attach</span>
         </div>
       )}
 
-      {/* Mention dropdown */}
+      {/* ── Mention dropdown ─────────────────────────────────────────────── */}
       {showMentions && filteredAgents.length > 0 && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-card/95 backdrop-blur-lg border border-border rounded-xl shadow-xl overflow-hidden max-h-44 overflow-y-auto z-20">
-          <div className="px-3 py-1.5 border-b border-border/50">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Mention agent</span>
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-card/98 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl overflow-hidden z-20">
+          <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#22D3EE] animate-pulse" />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Mention agent</span>
           </div>
-          {filteredAgents.map((agent, i) => (
-            <button
-              key={agent.name}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${
-                i === mentionIndex ? 'bg-[#22D3EE]/10 text-foreground' : 'text-foreground hover:bg-surface-1'
-              }`}
-              onMouseDown={(e) => { e.preventDefault(); insertMention(agent.name) }}
-            >
-              <div className="w-6 h-6 rounded-full bg-surface-2 flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border/50 flex-shrink-0">
-                {agent.name.charAt(0).toUpperCase()}
-              </div>
-              <span className="font-medium">@{agent.name}</span>
-              <span className="text-muted-foreground text-xs ml-auto">{agent.role}</span>
-            </button>
-          ))}
+          <div className="max-h-48 overflow-y-auto py-1">
+            {filteredAgents.map((agent, i) => (
+              <button
+                key={agent.name}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all ${
+                  i === mentionIndex
+                    ? 'bg-[#22D3EE]/10 text-foreground'
+                    : 'text-foreground/80 hover:bg-surface-1'
+                }`}
+                onMouseDown={(e) => { e.preventDefault(); insertMention(agent.name) }}
+              >
+                <div className="w-7 h-7 rounded-full bg-surface-2 flex items-center justify-center text-[10px] font-bold text-muted-foreground border border-border/60 flex-shrink-0">
+                  {agent.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">@{agent.name}</div>
+                  <div className="text-[10px] text-muted-foreground truncate">{agent.role}</div>
+                </div>
+                {i === mentionIndex && (
+                  <div className="text-[10px] text-[#22D3EE]/60 font-mono-tight">↵</div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Main input card */}
-      <div
-        className={`mx-0 border-t border-border bg-card/80 backdrop-blur-sm transition-all duration-200 ${
-          isDragOver ? 'bg-[#22D3EE]/5' : ''
-        }`}
-      >
-        {/* Inner glass container */}
+      {/* ── Main input surface ───────────────────────────────────────────── */}
+      <div className={compact ? 'px-2 pb-2' : 'px-3 pb-3'}>
         <div
-          className={`m-3 rounded-xl border transition-all duration-200 bg-surface-1/60 backdrop-blur-sm ${
+          className={[
+            'rounded-2xl border overflow-hidden transition-all duration-200',
+            'bg-card/80 backdrop-blur-sm',
             isFocused
-              ? 'border-[#22D3EE]/40 shadow-[0_0_0_3px_hsl(187_82%_53%_/_0.08)]'
-              : 'border-border/60 shadow-sm'
-          } ${disabled ? 'opacity-50' : ''}`}
+              ? 'border-[#22D3EE]/50 shadow-[0_0_0_3px_hsl(187_82%_53%_/_0.10),0_4px_24px_rgba(0,0,0,0.3)]'
+              : 'border-border/60 shadow-[0_2px_12px_rgba(0,0,0,0.2)]',
+            disabled ? 'opacity-50 pointer-events-none' : '',
+            isDragOver ? 'border-[#22D3EE]/60 bg-[#22D3EE]/5' : '',
+          ].filter(Boolean).join(' ')}
         >
           {/* Attachment strip */}
           {attachments.length > 0 && (
-            <div className="flex gap-2 px-3 pt-3 pb-1 overflow-x-auto scrollbar-none">
+            <div className="flex gap-2.5 px-4 pt-3 pb-1 overflow-x-auto scrollbar-none">
               {attachments.map((att, idx) => (
                 <AttachmentChip key={idx} att={att} index={idx} onRemove={removeAttachment} />
               ))}
             </div>
           )}
 
-          {/* Textarea */}
-          <div className="px-3 pt-2.5 pb-1">
-            <textarea
-              ref={textareaRef}
-              value={chatInput}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder={
-                disabled
-                  ? 'Select a conversation…'
-                  : recState === 'recording'
-                  ? '🎙 Recording… press stop when done'
-                  : 'Message… (@mention · Enter to send · Shift+Enter for newline)'
-              }
-              disabled={disabled || isSendingMessage || recState === 'recording'}
-              rows={1}
-              className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none disabled:opacity-40 transition-colors leading-relaxed"
-              style={{ minHeight: '28px', maxHeight: '160px' }}
-            />
-          </div>
-
-          {/* Recording progress bar */}
+          {/* Recording banner — replaces textarea while active */}
           {recState === 'recording' && (
-            <div className="px-3 pb-1">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-[3px] items-end h-4">
-                  {[3, 6, 4, 7, 3, 5, 6, 4, 5, 3].map((h, i) => (
-                    <div
-                      key={i}
-                      className="w-[2px] rounded-full bg-red-400"
-                      style={{
-                        height: `${h * 2}px`,
-                        animation: `waveBar 0.8s ease-in-out ${i * 0.07}s infinite alternate`,
-                      }}
-                    />
-                  ))}
+            <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
+              <div className="flex items-end gap-[3px] h-5 flex-shrink-0">
+                {waveHeights.map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-[2.5px] rounded-full bg-red-400"
+                    style={{
+                      height: `${h * 2.5}px`,
+                      animation: `chatWaveBar 0.7s ease-in-out ${i * 0.06}s infinite alternate`,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-semibold text-red-400 font-mono-tight">{recTime}</span>
+                  <span className="text-xs text-muted-foreground">Recording… press Stop when done</span>
                 </div>
-                <span className="text-xs font-mono-tight text-red-400">{recTime}</span>
-                <span className="text-[10px] text-muted-foreground">Recording…</span>
               </div>
             </div>
           )}
 
-          {/* Divider */}
-          <div className="mx-3 border-t border-border/40" />
-
-          {/* Bottom toolbar */}
-          <div className="flex items-center justify-between px-2 py-1.5">
-            {/* Left: action buttons */}
-            <div className="flex items-center gap-0.5">
-              {/* File / image upload */}
-              <ToolbarButton
-                onClick={() => fileInputRef.current?.click()}
-                disabled={disabled || isSendingMessage}
-                title="Attach file or image"
-                label="Attach"
-              >
-                <PaperclipIcon />
-              </ToolbarButton>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,video/*,.pdf,.doc,.docx,.txt,.md,.json,.csv,.zip"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) addFiles(e.target.files)
-                  e.target.value = ''
+          {/* Textarea */}
+          {recState !== 'recording' && (
+            <div className={`px-4 ${attachments.length > 0 ? 'pt-2' : 'pt-3.5'} pb-1`}>
+              <textarea
+                ref={textareaRef}
+                value={chatInput}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder={
+                  disabled
+                    ? 'Select a conversation to start chatting…'
+                    : recState === 'processing'
+                    ? 'Processing voice message…'
+                    : 'Ask AnimaClaw anything… (@mention an agent · ↵ send · ⇧↵ newline)'
+                }
+                disabled={disabled || isSendingMessage || recState !== 'idle'}
+                rows={1}
+                className={[
+                  'w-full resize-none bg-transparent text-foreground',
+                  'placeholder:text-muted-foreground/35 focus:outline-none',
+                  'disabled:opacity-40 leading-relaxed',
+                  compact ? 'text-xs' : 'text-sm',
+                ].join(' ')}
+                style={{
+                  minHeight: compact ? '22px' : '28px',
+                  maxHeight: compact ? '120px' : '200px',
                 }}
               />
+            </div>
+          )}
 
-              {/* Voice record */}
-              {recState === 'recording' ? (
-                <button
-                  onClick={stopRec}
-                  title="Stop recording"
-                  className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/15 transition-colors animate-pulse"
-                >
-                  <StopIcon />
-                  <span className="font-mono-tight">{recTime}</span>
-                </button>
-              ) : recState === 'processing' ? (
-                <ToolbarButton disabled title="Processing…">
-                  <span className="w-3.5 h-3.5 border-2 border-[#22D3EE]/30 border-t-[#22D3EE] rounded-full animate-spin inline-block" />
-                </ToolbarButton>
-              ) : (
-                <ToolbarButton
+          {/* Divider */}
+          <div className="mx-4 border-t border-border/30" />
+
+          {/* ── Toolbar ─────────────────────────────────────────────────── */}
+          <div className={`flex items-center justify-between ${compact ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
+
+            {/* Left — action buttons */}
+            <div className="flex items-center gap-1">
+
+              {/* File / image upload */}
+              {recState === 'idle' && (
+                <>
+                  <ActionButton
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={disabled || isSendingMessage}
+                    title="Attach image, PDF, or file (max 10 MB)"
+                  >
+                    <PaperclipIcon />
+                    <span className="text-[11px] font-medium hidden sm:inline">Attach</span>
+                  </ActionButton>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,.pdf,.doc,.docx,.txt,.md,.json,.csv,.zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) addFiles(e.target.files)
+                      e.target.value = ''
+                    }}
+                  />
+                </>
+              )}
+
+              {/* Voice — idle: record button */}
+              {recState === 'idle' && (
+                <ActionButton
                   onClick={startRec}
                   disabled={disabled || isSendingMessage}
-                  title="Record voice message"
-                  label="Voice"
-                  className="hover:text-[#22D3EE] hover:bg-[#22D3EE]/10"
+                  title="Record a voice message"
+                  hoverClass="hover:text-[#22D3EE] hover:bg-[#22D3EE]/10 hover:border-[#22D3EE]/20"
                 >
                   <MicIcon />
-                </ToolbarButton>
+                  <span className="text-[11px] font-medium hidden sm:inline">Voice</span>
+                </ActionButton>
+              )}
+
+              {/* Voice — recording: stop button */}
+              {recState === 'recording' && (
+                <button
+                  onClick={stopRec}
+                  className="flex items-center gap-2 h-8 px-3 rounded-xl text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 hover:border-red-500/40 transition-all"
+                >
+                  <StopIcon />
+                  Stop recording
+                </button>
+              )}
+
+              {/* Voice — processing */}
+              {recState === 'processing' && (
+                <div className="flex items-center gap-2 h-8 px-3 text-xs text-muted-foreground">
+                  <span className="w-3.5 h-3.5 border-2 border-[#22D3EE]/30 border-t-[#22D3EE] rounded-full animate-spin inline-block" />
+                  <span>Processing…</span>
+                </div>
               )}
             </div>
 
-            {/* Right: hint + send/stop */}
+            {/* Right — send / abort */}
             <div className="flex items-center gap-2">
-              {!isGenerating && !hasContent && (
-                <span className="hidden sm:inline text-[10px] text-muted-foreground/40 font-mono-tight select-none">
-                  ↵ send · ⇧↵ newline
-                </span>
-              )}
-
               {isGenerating && onAbort ? (
                 <button
                   onClick={onAbort}
-                  title="Stop generation"
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/15 transition-colors"
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 transition-all"
                 >
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
-                    <rect x="1" y="1" width="10" height="10" rx="1.5" />
-                  </svg>
+                  <StopIcon />
                   Stop
                 </button>
               ) : (
                 <button
                   onClick={handleSend}
-                  disabled={!canSend}
+                  disabled={!canSend || recState !== 'idle'}
                   title="Send message (Enter)"
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${
-                    canSend
-                      ? 'bg-[#22D3EE] text-[#07090C] hover:bg-[#22D3EE]/90 shadow-[0_0_12px_hsl(187_82%_53%_/_0.35)]'
-                      : 'bg-surface-2 text-muted-foreground/30 cursor-not-allowed'
-                  }`}
+                  className={[
+                    'flex items-center justify-center rounded-xl transition-all duration-200',
+                    compact ? 'h-7 w-7' : 'h-8 w-8',
+                    canSend && recState === 'idle'
+                      ? 'bg-[#22D3EE] text-[#07090C] shadow-[0_0_16px_hsl(187_82%_53%_/_0.4),0_2px_8px_rgba(0,0,0,0.3)] hover:bg-[#22D3EE]/90 hover:shadow-[0_0_20px_hsl(187_82%_53%_/_0.5)] active:scale-95'
+                      : 'bg-surface-2 text-muted-foreground/30 cursor-not-allowed',
+                  ].join(' ')}
                 >
                   {isSendingMessage ? (
                     <span className="w-3.5 h-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin inline-block" />
@@ -497,35 +518,61 @@ export function ChatInput({ onSend, onAbort, disabled, agents = [], isGenerating
             </div>
           </div>
         </div>
+
+        {/* Sub-line: attachment count / char count */}
+        {(attachments.length > 0 || chatInput.length > 200) && (
+          <div className="flex items-center justify-between mt-1.5 px-1">
+            {attachments.length > 0 && (
+              <span className="text-[10px] text-muted-foreground/50 font-mono-tight">
+                {attachments.length} attachment{attachments.length > 1 ? 's' : ''}
+              </span>
+            )}
+            {chatInput.length > 200 && (
+              <span className="text-[10px] text-muted-foreground/50 font-mono-tight ml-auto">
+                {chatInput.length} chars
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Inline keyframe — avoids globals.css dependency */}
+      <style>{`
+        @keyframes chatWaveBar {
+          0%   { transform: scaleY(0.4); opacity: 0.6; }
+          100% { transform: scaleY(1);   opacity: 1;   }
+        }
+      `}</style>
     </div>
   )
 }
 
-// ─── Toolbar button primitive ─────────────────────────────────────────────────
+// ─── Action button primitive ──────────────────────────────────────────────────
 
-function ToolbarButton({
+function ActionButton({
   children,
   onClick,
   disabled,
   title,
-  label,
-  className = '',
+  hoverClass = 'hover:text-foreground hover:bg-surface-2',
 }: {
   children: React.ReactNode
   onClick?: () => void
   disabled?: boolean
   title?: string
-  label?: string
-  className?: string
+  hoverClass?: string
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={title}
-      aria-label={label || title}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:text-foreground hover:bg-surface-2 ${className}`}
+      className={[
+        'flex items-center gap-1.5 h-8 px-2.5 rounded-xl border border-transparent',
+        'text-muted-foreground transition-all duration-150',
+        'disabled:opacity-30 disabled:cursor-not-allowed',
+        hoverClass,
+      ].join(' ')}
     >
       {children}
     </button>
@@ -553,15 +600,15 @@ function MicIcon() {
 
 function StopIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-      <rect x="1" y="1" width="10" height="10" rx="1.5" />
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+      <rect x="1" y="1" width="10" height="10" rx="2" />
     </svg>
   )
 }
 
 function SendIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2L7 9" />
       <path d="M14 2l-5 12-2-5-5-2 12-5z" />
     </svg>
@@ -570,7 +617,7 @@ function SendIcon() {
 
 function WaveformIcon() {
   return (
-    <svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <svg width="14" height="12" viewBox="0 0 16 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <path d="M1 7h1M3 4v6M5 2v10M7 5v4M9 3v8M11 5v4M13 4v6M15 7h1" />
     </svg>
   )
@@ -578,17 +625,19 @@ function WaveformIcon() {
 
 function FileIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V6L9 1z" />
       <path d="M9 1v5h5" />
     </svg>
   )
 }
 
-function UploadIcon() {
+function UploadCloudIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 16 12 12 8 16" />
+      <line x1="12" y1="12" x2="12" y2="21" />
+      <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" />
     </svg>
   )
 }
