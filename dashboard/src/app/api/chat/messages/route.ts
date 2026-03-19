@@ -344,9 +344,10 @@ export async function POST(request: NextRequest) {
     const conversation_id = body.conversation_id || `conv_${Date.now()}`
     const metadata = body.metadata || null
 
-    if (!content) {
+    const hasAttachments = Array.isArray(body.attachments) && body.attachments.length > 0
+    if (!content && !hasAttachments) {
       return NextResponse.json(
-        { error: '"content" is required' },
+        { error: '"content" or "attachments" is required' },
         { status: 400 }
       )
     }

@@ -28,7 +28,9 @@ function useVoiceRecorder(onRecorded: (attachment: ChatAttachment) => void) {
     if (state !== 'idle') return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+      const preferredTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+      const supportedType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t)) ?? ''
+      const recorder = new MediaRecorder(stream, supportedType ? { mimeType: supportedType } : {})
       chunksRef.current = []
 
       recorder.ondataavailable = (e) => {
@@ -38,12 +40,14 @@ function useVoiceRecorder(onRecorded: (attachment: ChatAttachment) => void) {
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
         setState('processing')
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const mimeType = recorder.mimeType || 'audio/webm'
+        const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm'
+        const blob = new Blob(chunksRef.current, { type: mimeType })
         const reader = new FileReader()
         reader.onload = () => {
           onRecorded({
-            name: `voice-${Date.now()}.webm`,
-            type: 'audio/webm',
+            name: `voice-${Date.now()}.${ext}`,
+            type: mimeType,
             size: blob.size,
             dataUrl: reader.result as string,
           })
