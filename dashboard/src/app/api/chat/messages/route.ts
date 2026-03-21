@@ -637,6 +637,12 @@ export async function POST(request: NextRequest) {
                   'I received your message, but my live coordinator session is offline right now. Start/restore the coordinator session and retry.',
                   'status', { status: 'offline', reason: 'no_active_session' }
                 )
+              } else {
+                createChatReply(
+                  db, workspaceId, conversation_id, to || 'system', from,
+                  'No AI provider is configured. Please set OPENROUTER_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY in the server .env and restart.',
+                  'status', { status: 'offline', reason: 'no_ai_provider' }
+                )
               }
             } catch (e) {
               logger.error({ err: e }, 'Failed to generate direct AI reply')
@@ -726,8 +732,37 @@ export async function POST(request: NextRequest) {
               forwardInfo.reason = 'gateway_send_failed'
               logger.error({ err }, 'Failed to forward message via gateway')
 
+              // Fallback: try direct AI response after gateway failure
+              if (to) {
+                try {
+                  const agentRow = db
+                    .prepare('SELECT name, role, soul_content, config FROM agents WHERE lower(name) = lower(?) AND workspace_id = ?')
+                    .get(to, workspaceId) as { name: string; role: string; soul_content?: string; config?: string } | undefined
+                  const aiReply = await callDirectAI(
+                    agentRow?.name || to,
+                    agentRow?.soul_content || null,
+                    agentRow?.role || null,
+                    content,
+                    agentRow?.config || null
+                  )
+                  if (aiReply) {
+                    createChatReply(db, workspaceId, conversation_id, to, from, aiReply, 'text', { source: 'direct_ai_fallback' })
+                    forwardInfo.delivered = true
+                    forwardInfo.reason = undefined
+                  } else if (typeof conversation_id !== 'string' || !conversation_id.startsWith('coord:')) {
+                    createChatReply(
+                      db, workspaceId, conversation_id, to, from,
+                      'No AI provider is configured. Please set OPENROUTER_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY in the server .env and restart.',
+                      'status', { status: 'offline', reason: 'no_ai_provider' }
+                    )
+                  }
+                } catch (e) {
+                  logger.error({ err: e }, 'Direct AI fallback after gateway failure also failed')
+                }
+              }
+
               // For coordinator messages, emit visible status when send fails
-              if (typeof conversation_id === 'string' && conversation_id.startsWith('coord:')) {
+              if (!forwardInfo.delivered && typeof conversation_id === 'string' && conversation_id.startsWith('coord:')) {
                 try {
                   createChatReply(
                     db,

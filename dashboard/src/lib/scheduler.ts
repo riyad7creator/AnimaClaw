@@ -165,7 +165,7 @@ async function runHeartbeatCheck(): Promise<{ ok: boolean; message: string }> {
     // Find agents that are not offline but haven't been seen recently
     const staleAgents = db.prepare(`
       SELECT id, name, status, last_seen FROM agents
-      WHERE status != 'offline' AND (last_seen IS NULL OR last_seen < ?)
+      WHERE status != 'offline' AND last_seen IS NOT NULL AND last_seen < ?
     `).all(threshold) as Array<{ id: number; name: string; status: string; last_seen: number | null }>
 
     if (staleAgents.length === 0) {
