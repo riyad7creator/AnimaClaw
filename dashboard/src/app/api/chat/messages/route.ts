@@ -8,6 +8,9 @@ import { logger } from '@/lib/logger'
 import { scanForInjection, sanitizeForPrompt } from '@/lib/injection-guard'
 import { callOpenClawGateway } from '@/lib/openclaw-gateway'
 import { resolveCoordinatorDeliveryTarget } from '@/lib/coordinator-routing'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
 
 type ForwardInfo = {
   attempted: boolean
@@ -238,6 +241,46 @@ function extractToolEvents(waitPayload: any): ToolEvent[] {
   return events
 }
 
+const CHATGPT_AUTH_PATHS = [
+  path.join(os.homedir(), '.codex', 'auth.json'),
+  path.join(os.homedir(), '.config', 'openai', 'auth.json'),
+  path.join(os.homedir(), '.openai', 'auth.json'),
+]
+
+let _chatgptKeyCache: { ts: number; key: string | null } | null = null
+
+/**
+ * Read the ChatGPT/Codex OAuth access token from disk.
+ * Returns the bearer token string if a valid ChatGPT subscription auth is found, else null.
+ */
+function resolveChatGPTSubscriptionKey(): string | null {
+  const now = Date.now()
+  if (_chatgptKeyCache && now - _chatgptKeyCache.ts < 60_000) return _chatgptKeyCache.key
+
+  for (const authPath of CHATGPT_AUTH_PATHS) {
+    if (!existsSync(authPath)) continue
+    try {
+      const data = JSON.parse(readFileSync(authPath, 'utf-8'))
+      // Codex CLI stores auth_mode="chatgpt" + access_token when logged in via ChatGPT
+      const authMode = typeof data.auth_mode === 'string' ? data.auth_mode : ''
+      const token =
+        typeof data.access_token === 'string' ? data.access_token :
+        typeof data.token === 'string' ? data.token :
+        typeof data.api_key === 'string' ? data.api_key : null
+
+      if (token && (authMode === 'chatgpt' || authMode === 'openai' || token.startsWith('sk-'))) {
+        _chatgptKeyCache = { ts: now, key: token }
+        return token
+      }
+    } catch {
+      // malformed JSON, skip
+    }
+  }
+
+  _chatgptKeyCache = { ts: now, key: null }
+  return null
+}
+
 /**
  * Resolve which AI provider + model + key to use.
  * Priority: agent-level config → system env vars → auto-detect from available keys.
@@ -272,7 +315,13 @@ function resolveAIConfig(agentConfig: Record<string, any> | null): {
   const provider = (agentProvider || envProvider || '').toLowerCase()
 
   if (provider === 'openai' || (!provider && openaiKey)) {
-    if (!openaiKey) return null
+    if (!openaiKey) {
+      // Fall back to ChatGPT subscription auth (Codex CLI)
+      const chatgptKey = resolveChatGPTSubscriptionKey()
+      if (!chatgptKey) return null
+      const model = agentModel || envModel || 'gpt-4o'
+      return { provider: 'openai', model, apiKey: chatgptKey }
+    }
     const model = agentModel || envModel || 'gpt-4o-mini'
     return { provider: 'openai', model, apiKey: openaiKey }
   }
@@ -287,6 +336,15 @@ function resolveAIConfig(agentConfig: Record<string, any> | null): {
     if (!anthropicKey) return null
     const model = agentModel || envModel || 'claude-haiku-4-5-20251001'
     return { provider: 'anthropic', model, apiKey: anthropicKey }
+  }
+
+  // Last resort: try ChatGPT subscription auth for any provider
+  if (!provider) {
+    const chatgptKey = resolveChatGPTSubscriptionKey()
+    if (chatgptKey) {
+      const model = agentModel || envModel || 'gpt-4o'
+      return { provider: 'openai', model, apiKey: chatgptKey }
+    }
   }
 
   return null
