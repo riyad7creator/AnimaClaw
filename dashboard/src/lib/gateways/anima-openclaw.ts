@@ -1,6 +1,6 @@
 /**
  * AnimaClaw OpenClaw Gateway Adapter
- * Connects Mission Control to AnimaClaw's multi-provider routing system.
+ * Connects Anima OS to AnimaClaw's multi-provider routing system.
  * Routes requests through OpenClaw gateway with provider selection based on task type.
  */
 

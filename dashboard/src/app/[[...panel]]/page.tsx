@@ -409,7 +409,7 @@ export default function Home() {
           </div>
           <footer className="px-4 pb-4 pt-2">
             <p className="text-2xs text-muted-foreground/50 text-center">
-              AnimaClaw Mission Control v1.7 | Built for Algeria Business Bay | <a href="mailto:riyad@ketami.net" className="text-muted-foreground/70 hover:text-primary transition-colors duration-200">riyad@ketami.net</a>
+              AnimaClaw Anima OS v1.7 | Built for Algeria Business Bay | <a href="mailto:riyad@ketami.net" className="text-muted-foreground/70 hover:text-primary transition-colors duration-200">riyad@ketami.net</a>
             </p>
           </footer>
         </main>

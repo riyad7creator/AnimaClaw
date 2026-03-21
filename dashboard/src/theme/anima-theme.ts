@@ -1,10 +1,10 @@
 /**
- * AnimaClaw Mission Control v1.7 - Brand Theme
+ * AnimaClaw Anima OS v1.7 - Brand Theme
  */
 
 const animaTheme = {
   primary: process.env.ANIMA_BRAND_COLOR || '#6366f1',
-  name: 'AnimaClaw Mission Control v1.7',
+  name: 'AnimaClaw Anima OS v1.7',
   footer: 'Built for Algeria Business Bay | riyad@ketami.net',
   logo: '/anima-logo.svg',
   hero: {

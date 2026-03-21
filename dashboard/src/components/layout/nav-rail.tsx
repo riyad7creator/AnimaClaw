@@ -307,7 +307,7 @@ export function NavRail() {
           <div className="w-9 h-9 rounded-lg overflow-hidden bg-background border border-border/50 flex items-center justify-center shrink-0 hover:border-void-cyan/40 hover:glow-cyan transition-smooth">
             <Image
               src="/brand/mc-logo-128.png"
-              alt="Mission Control logo"
+              alt="Anima OS logo"
               width={36}
               height={36}
               className="w-full h-full object-cover"
@@ -315,7 +315,7 @@ export function NavRail() {
           </div>
           {sidebarExpanded && (
             <div className="flex items-baseline gap-2 truncate flex-1 min-w-0">
-              <span className="text-sm font-semibold text-foreground truncate">Mission Control</span>
+              <span className="text-sm font-semibold text-foreground truncate">Anima OS</span>
               <span className="text-2xs text-muted-foreground font-mono-tight shrink-0">v{APP_VERSION}</span>
             </div>
           )}
@@ -474,36 +474,6 @@ export function NavRail() {
             </div>
           ))}
         </div>
-
-        {/* Promo banners */}
-        {sidebarExpanded && (
-          <div className="px-2 pb-2 space-y-2 shrink-0">
-            <a
-              href="https://x.com/nyk_builderz/status/2022996371922649192?s=20"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-lg border border-border/50 bg-surface-1 hover:bg-surface-2 hover:border-primary/30 transition-all duration-200 p-2 group"
-            >
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-2xs font-semibold text-foreground group-hover:text-primary transition-colors">xint</span>
-                <span className="text-[9px] px-1 py-px rounded bg-primary/15 text-primary font-mono">CLI</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground/70 leading-snug">X power tools for agents.</p>
-            </a>
-            <a
-              href="https://builderz.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-lg border border-void-cyan/20 bg-gradient-to-br from-void-cyan/5 to-transparent hover:from-void-cyan/10 hover:border-void-cyan/40 transition-all duration-200 p-2 group"
-            >
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-2xs font-bold text-foreground group-hover:text-void-cyan transition-colors">builderz</span>
-                <span className="text-[9px] px-1 py-px rounded bg-void-cyan/15 text-void-cyan">.dev</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground/70 leading-snug">AI-native dev shop · Solana experts.</p>
-            </a>
-          </div>
-        )}
 
         {/* Context switcher (profile-style, bottom of sidebar) */}
         <ContextSwitcher
