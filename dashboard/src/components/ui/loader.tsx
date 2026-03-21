@@ -50,7 +50,7 @@ const LOADER_AGENTS = [
 
 const LOADER_IMAGE_SOURCES = [
   ...LOADER_AGENTS.map((agent) => agent.src),
-  '/brand/mc-logo-128.png',
+  '/brand/animaos-logo-128.png',
 ] as const
 
 function LoaderDots({ size = 'md' }: { size?: 'sm' | 'md' }) {
@@ -138,7 +138,7 @@ function PageLoader({ steps }: { steps?: InitStep[] }) {
           <div className="absolute inset-0 flex items-center justify-center opacity-0 animate-mc-fade-in">
             <div className="animate-float" style={{ animationDelay: '2.7s' }}>
               <Image
-                src="/brand/mc-logo-128.png"
+                src="/brand/animaos-logo-128.png"
                 alt="Anima OS"
                 width={56}
                 height={56}

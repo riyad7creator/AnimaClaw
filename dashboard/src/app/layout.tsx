@@ -58,7 +58,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/icon.png', type: 'image/png', sizes: '256x256' },
-      { url: '/brand/mc-logo-128.png', type: 'image/png', sizes: '128x128' },
+      { url: '/brand/animaos-logo-128.png', type: 'image/png', sizes: '128x128' },
     ],
     apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
     shortcut: ['/icon.png'],
@@ -66,13 +66,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Anima OS',
     description: 'OpenClaw Agent Orchestration Dashboard',
-    images: [{ url: '/brand/mc-logo-512.png', width: 512, height: 512, alt: 'Anima OS logo' }],
+    images: [{ url: '/brand/animaos-logo-512.png', width: 512, height: 512, alt: 'Anima OS logo' }],
   },
   twitter: {
     card: 'summary',
     title: 'Anima OS',
     description: 'OpenClaw Agent Orchestration Dashboard',
-    images: ['/brand/mc-logo-512.png'],
+    images: ['/brand/animaos-logo-512.png'],
   },
   appleWebApp: {
     capable: true,
