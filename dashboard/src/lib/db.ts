@@ -159,92 +159,82 @@ function seedAdminUserFromEnv(dbConn: Database.Database): void {
   logger.info(`Seeded admin user: ${username}`)
 }
 
-/** Default Anima OS agents seeded on first run */
-const ANIMA_DEFAULT_AGENTS = [
-  {
-    name: 'Claude',
-    role: 'reasoning',
-    config: JSON.stringify({
-      provider: 'anthropic',
-      category: 'reasoning',
-      identity: { emoji: '🧠', theme: 'cyan', description: 'Anthropic reasoning agent' },
-    }),
-  },
-  {
-    name: 'Kimi',
-    role: 'speed',
-    config: JSON.stringify({
-      provider: 'moonshot',
-      category: 'speed',
-      identity: { emoji: '⚡', theme: 'violet', description: 'Moonshot speed agent via kimi-claw' },
-    }),
-  },
-  {
-    name: 'DeepSeek',
-    role: 'speed',
-    config: JSON.stringify({
-      provider: 'deepseek',
-      category: 'speed',
-      identity: { emoji: '🔍', theme: 'blue', description: 'DeepSeek speed agent' },
-    }),
-  },
-  {
-    name: 'Gemini',
-    role: 'reasoning',
-    config: JSON.stringify({
-      provider: 'google',
-      category: 'reasoning',
-      identity: { emoji: '💎', theme: 'emerald', description: 'Google Gemini reasoning agent' },
-    }),
-  },
-  {
-    name: 'OpenClaw',
-    role: 'orchestrator',
-    config: JSON.stringify({
-      provider: 'openclaw',
-      category: 'orchestration',
-      identity: { emoji: '🦀', theme: 'orange', description: 'OpenClaw gateway orchestrator' },
-    }),
-  },
-  {
-    name: 'Hermes',
-    role: 'automation',
-    config: JSON.stringify({
-      provider: 'hermes',
-      category: 'automation',
-      identity: { emoji: '🪽', theme: 'amber', description: 'Hermes webhook automation agent' },
-    }),
-  },
-  {
-    name: 'Codex',
-    role: 'developer',
-    config: JSON.stringify({
-      provider: 'openai',
-      category: 'code',
-      identity: { emoji: '💻', theme: 'indigo', description: 'OpenAI Codex code agent' },
-    }),
-  },
-]
-
+/**
+ * Seed the real Anima OS agents from the project's openclaw.json.
+ * Reads agents defined at ANIMA_OS_CONFIG_PATH (defaults to ../openclaw.json
+ * relative to the dashboard directory — i.e. the project root openclaw.json).
+ * Only runs when zero agents exist, so it never overwrites live data.
+ */
 function seedDefaultAgents(dbConn: Database.Database): void {
   if (process.env.NEXT_PHASE === 'phase-production-build') return
 
   const count = (dbConn.prepare('SELECT COUNT(*) as count FROM agents').get() as CountRow).count
-  if (count > 0) return  // Agents already exist — don't overwrite user data
+  if (count > 0) return
+
+  // Resolve path to the project-level openclaw.json
+  const { join: pathJoin, resolve: pathResolve } = require('path')
+  const { existsSync, readFileSync } = require('fs')
+
+  const configPath =
+    process.env.ANIMA_OS_CONFIG_PATH ||
+    pathResolve(process.cwd(), '..', 'openclaw.json')
+
+  if (!existsSync(configPath)) {
+    logger.warn(`seedDefaultAgents: openclaw.json not found at ${configPath} — skipping agent seed`)
+    return
+  }
+
+  let projectConfig: any
+  try {
+    projectConfig = JSON.parse(readFileSync(configPath, 'utf8'))
+  } catch (err) {
+    logger.warn({ err }, 'seedDefaultAgents: failed to parse openclaw.json')
+    return
+  }
+
+  const agents: any[] = projectConfig?.agents || []
+  if (agents.length === 0) {
+    logger.warn('seedDefaultAgents: no agents found in openclaw.json')
+    return
+  }
 
   const now = Math.floor(Date.now() / 1000)
   const insert = dbConn.prepare(`
     INSERT OR IGNORE INTO agents (name, role, soul_content, status, source, created_at, updated_at, config)
-    VALUES (?, ?, NULL, 'offline', 'seed', ?, ?, ?)
+    VALUES (?, ?, ?, 'offline', 'seed', ?, ?, ?)
   `)
 
   dbConn.transaction(() => {
-    for (const agent of ANIMA_DEFAULT_AGENTS) {
-      insert.run(agent.name, agent.role, now, now, agent.config)
+    for (const agent of agents) {
+      const name: string = agent.name
+      if (!name) continue
+
+      // Map openclaw agent fields to dashboard DB columns
+      const role: string = agent.description || agent.name.toLowerCase().replace(/_/g, '-')
+
+      // Try to load soul_content from the agent's .md file
+      let soulContent: string | null = null
+      if (agent.file) {
+        const agentFilePath = pathJoin(pathResolve(configPath, '..'), agent.file)
+        if (existsSync(agentFilePath)) {
+          try { soulContent = readFileSync(agentFilePath, 'utf8') } catch {}
+        }
+      }
+
+      const cfg = JSON.stringify({
+        phi_weight: agent.phi_weight ?? null,
+        depth: agent.depth ?? null,
+        parent: agent.parent ?? null,
+        cycle: agent.cycle ?? null,
+        tools: agent.tools ?? [],
+        description: agent.description ?? '',
+      })
+
+      insert.run(name, role, soulContent, now, now, cfg)
     }
   })()
 
-  logger.info(`Seeded ${ANIMA_DEFAULT_AGENTS.length} default Anima OS agents`)
+  logger.info(`Seeded ${agents.length} Anima OS agents from ${configPath}`)
 }
 
 /**
