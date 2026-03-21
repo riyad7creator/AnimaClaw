@@ -268,7 +268,7 @@ function resolveChatGPTSubscriptionKey(): string | null {
         typeof data.token === 'string' ? data.token :
         typeof data.api_key === 'string' ? data.api_key : null
 
-      if (token && (authMode === 'chatgpt' || authMode === 'openai' || token.startsWith('sk-'))) {
+      if (token && token.length > 10) {
         _chatgptKeyCache = { ts: now, key: token }
         return token
       }
