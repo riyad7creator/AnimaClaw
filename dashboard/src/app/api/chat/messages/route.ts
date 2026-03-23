@@ -247,32 +247,79 @@ const CHATGPT_AUTH_PATHS = [
   path.join(os.homedir(), '.openai', 'auth.json'),
 ]
 
+// Client ID used by the Codex CLI / ChatGPT device auth flow
+const CODEX_CLIENT_ID = 'pdlLIX2Y72MIl2rhLhTE9VV9bN905kBh'
+const OPENAI_TOKEN_URL = 'https://auth.openai.com/oauth/token'
+
 let _chatgptKeyCache: { ts: number; key: string | null } | null = null
+
+/** Decode JWT exp claim without verifying signature — returns ms epoch or null */
+function jwtExpiryMs(token: string): number | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch { return null }
+}
+
+/** Try to exchange refresh_token for a new access_token and save back to disk. */
+async function refreshChatGPTToken(authPath: string, data: Record<string, unknown>): Promise<string | null> {
+  const refreshToken = (data.tokens as Record<string, unknown>)?.refresh_token as string | undefined
+    ?? data.refresh_token as string | undefined
+  if (!refreshToken) return null
+  try {
+    const body = JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CODEX_CLIENT_ID })
+    const res = await fetch(OPENAI_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+    if (!res.ok) return null
+    const resp = await res.json() as Record<string, unknown>
+    const newToken = resp.access_token as string | undefined
+    if (!newToken) return null
+    // Persist refreshed tokens back to disk
+    const updated = { ...data }
+    ;(updated.tokens as Record<string, unknown>).access_token = newToken
+    if (resp.refresh_token) (updated.tokens as Record<string, unknown>).refresh_token = resp.refresh_token as string
+    updated.last_refresh = new Date().toISOString()
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(authPath, JSON.stringify(updated, null, 2))
+    _chatgptKeyCache = { ts: Date.now(), key: newToken }
+    return newToken
+  } catch { return null }
+}
 
 /**
  * Read the ChatGPT/Codex OAuth access token from disk.
+ * Auto-refreshes via refresh_token when the JWT is expired or near-expiry.
  * Returns the bearer token string if a valid ChatGPT subscription auth is found, else null.
  */
-function resolveChatGPTSubscriptionKey(): string | null {
+async function resolveChatGPTSubscriptionKey(): Promise<string | null> {
   const now = Date.now()
-  if (_chatgptKeyCache && now - _chatgptKeyCache.ts < 60_000) return _chatgptKeyCache.key
+  if (_chatgptKeyCache && now - _chatgptKeyCache.ts < 55_000) return _chatgptKeyCache.key
 
   for (const authPath of CHATGPT_AUTH_PATHS) {
     if (!existsSync(authPath)) continue
     try {
-      const data = JSON.parse(readFileSync(authPath, 'utf-8'))
-      // Codex CLI stores auth_mode="chatgpt" + tokens.access_token (nested) when logged in via ChatGPT
-      // Older format: top-level access_token
+      const data = JSON.parse(readFileSync(authPath, 'utf-8')) as Record<string, unknown>
+      // Codex CLI v0.116+ stores tokens nested: data.tokens.access_token
       const token =
-        typeof data.tokens?.access_token === 'string' ? data.tokens.access_token :
-        typeof data.access_token === 'string' ? data.access_token :
-        typeof data.token === 'string' ? data.token :
-        typeof data.api_key === 'string' ? data.api_key : null
+        typeof (data.tokens as Record<string, unknown>)?.access_token === 'string'
+          ? (data.tokens as Record<string, unknown>).access_token as string
+          : typeof data.access_token === 'string' ? data.access_token
+          : typeof data.token === 'string' ? data.token
+          : typeof data.api_key === 'string' ? data.api_key
+          : null
 
-      if (token && token.length > 10) {
-        _chatgptKeyCache = { ts: now, key: token }
-        return token
+      if (!token || token.length < 10) continue
+
+      // Check JWT expiry — if expired or expiring within 2 min, try to refresh
+      const expiry = jwtExpiryMs(token)
+      const isExpired = expiry !== null && expiry < now + 120_000
+      if (isExpired) {
+        const refreshed = await refreshChatGPTToken(authPath, data)
+        if (refreshed) return refreshed
+        // If refresh failed, still try the old token (might still work briefly)
       }
+
+      _chatgptKeyCache = { ts: now, key: token }
+      return token
     } catch {
       // malformed JSON, skip
     }
@@ -296,11 +343,11 @@ function resolveChatGPTSubscriptionKey(): string | null {
  *   ANIMA_AI_MODEL     = model name (e.g. gpt-4o-mini, openai/gpt-4o, claude-sonnet-4-6)
  *   OPENROUTER_MODEL   = model name on OpenRouter (overrides ANIMA_AI_MODEL for openrouter)
  */
-function resolveAIConfig(agentConfig: Record<string, any> | null): {
+async function resolveAIConfig(agentConfig: Record<string, any> | null): Promise<{
   provider: 'openai' | 'openrouter' | 'anthropic' | null
   model: string
   apiKey: string
-} | null {
+} | null> {
   // Per-agent overrides from config JSON
   const agentProvider = agentConfig?.ai_provider as string | undefined
   const agentModel    = agentConfig?.ai_model    as string | undefined
@@ -317,8 +364,8 @@ function resolveAIConfig(agentConfig: Record<string, any> | null): {
 
   if (provider === 'openai' || (!provider && openaiKey)) {
     if (!openaiKey) {
-      // Fall back to ChatGPT subscription auth (Codex CLI)
-      const chatgptKey = resolveChatGPTSubscriptionKey()
+      // Fall back to ChatGPT subscription auth (Codex CLI) with auto-refresh
+      const chatgptKey = await resolveChatGPTSubscriptionKey()
       if (!chatgptKey) return null
       const model = agentModel || envModel || 'gpt-4o'
       return { provider: 'openai', model, apiKey: chatgptKey }
@@ -341,7 +388,7 @@ function resolveAIConfig(agentConfig: Record<string, any> | null): {
 
   // Last resort: try ChatGPT subscription auth for any provider
   if (!provider) {
-    const chatgptKey = resolveChatGPTSubscriptionKey()
+    const chatgptKey = await resolveChatGPTSubscriptionKey()
     if (chatgptKey) {
       const model = agentModel || envModel || 'gpt-4o'
       return { provider: 'openai', model, apiKey: chatgptKey }
@@ -368,7 +415,7 @@ async function callDirectAI(
     try { agentConfig = JSON.parse(agentConfigJson) } catch {}
   }
 
-  const resolved = resolveAIConfig(agentConfig)
+  const resolved = await resolveAIConfig(agentConfig)
   if (!resolved) return null
 
   const { provider, model, apiKey } = resolved
